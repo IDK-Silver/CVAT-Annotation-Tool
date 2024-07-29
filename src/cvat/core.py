@@ -131,9 +131,9 @@ class CVAT:
         self.__main_key = attr_name
 
     def export(
-            self, output_path: str = 'data',
+            self, export_path: str = 'data',
             export_type: Union[ExportAnnotationType, str] = ExportAnnotationType.yolo, export_args: tuple = None):
 
         # export yolo format
         if export_type is ExportAnnotationType.yolo:
-            module.yolo.export(self.__main_key, self.__meta, self.__images, output_path, *export_args)
+            module.yolo.export(self.__main_key, self.__meta, self.__images, export_path, *export_args)
