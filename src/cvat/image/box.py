@@ -24,7 +24,7 @@ class Box:
 
     @staticmethod
     def to_yolo_format(box: Union['Box', dict], image_width: int, image_height: int, cls_id=None,
-                       to_str=False) -> tuple:
+                       to_str=False) -> Union[tuple, str]:
         """
         Convert box to YOLO format: (x_center, y_center, width, height)
         All values are normalized to [0, 1]
