@@ -1,2 +1,3 @@
 from . import yolo
-__all__ = ['yolo']
+from . import unet
+__all__ = ['yolo', 'unet']

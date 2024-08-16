@@ -8,9 +8,9 @@ from typing import List
 import cvat.core
 from cvat.meta import Attr
 from cvat.meta import Label
-from cvat.image.box import Box
-from cvat.image.image import Image
-from cvat.utility.dataset_split import split_dataset
+from cvat.data.box import Box
+from cvat.data.image import Image
+from cvat.utility.dataset import split_dataset
 
 
 def export(

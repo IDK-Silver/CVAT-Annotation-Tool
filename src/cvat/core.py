@@ -6,8 +6,9 @@ from typing import List, Union, Any
 
 from .meta.label import Label
 from .meta.attr import Attr
-from .image.image import Image
-from .image.box import Box
+from .data.image import Image
+from .data.box import Box
+from .data.mask import Mask
 from .export.annotation_type import ExportAnnotationType
 from .export import module
 
@@ -40,7 +41,23 @@ class CVAT:
             warnings.warn('CVAT : not support version')
 
         labels_element = root.find('meta').find('project').find('labels')
-
+        
+        if labels_element is None:
+            try:
+                labels_element = root.find('meta').find('job').find('labels')
+            except:
+                pass
+        
+        if labels_element is None:
+            try:
+                labels_element = root.find('meta').find('task').find('labels')
+            except:
+                pass
+        
+        if labels_element is None:
+            warnings.warn('CVAT : not find labels')
+            exit(-1)
+            
         if labels_element is not None:
             for label_element in labels_element:
 
@@ -63,14 +80,15 @@ class CVAT:
 
                 self.__meta.append(label)
 
-        # Parse images and boxes
+        # Parse images
         for image_element in root.findall('image'):
             image = Image.create_object()
             image[Image.Keys.id] = image_element.get('id')
             image[Image.Keys.name] = image_element.get('name')
             image[Image.Keys.width] = int(image_element.get('width'))
             image[Image.Keys.height] = int(image_element.get('height'))
-
+            
+            # Decode boxes
             for box_element in image_element.findall('box'):
                 box = Box.create_object()
                 box[Box.Keys.label] = box_element.get('label')
@@ -86,6 +104,20 @@ class CVAT:
 
                 image[Image.Keys.boxes].append(box)
 
+            # Decode masks
+            for mask_element in image_element.findall('mask'):
+                mask = Mask.create_object()
+                mask[Mask.Keys.label] = mask_element.get('label')
+                mask[Mask.Keys.source] = mask_element.get('source')
+                mask[Mask.Keys.occluded] = mask_element.get('occluded')
+                mask[Mask.Keys.rle] = mask_element.get('rle')
+                mask[Mask.Keys.width] = int(mask_element.get('width'))
+                mask[Mask.Keys.height] = int(mask_element.get('height'))
+                mask[Mask.Keys.left] = int(mask_element.get('left'))
+                mask[Mask.Keys.top] = int(mask_element.get('top'))
+                
+                image[Image.Keys.masks].append(mask)
+                
             self.__images.append(image)
 
     def get_meta(self) -> List[Union[Label, dict]]:
@@ -137,3 +169,6 @@ class CVAT:
         # export yolo format
         if export_type is ExportAnnotationType.yolo:
             module.yolo.export(self.__main_key, self.__meta, self.__images, export_path, *export_args)
+
+        if export_type is ExportAnnotationType.unet:
+            module.unet.export(self.__main_key, self.__meta, self.__images, export_path, *export_args)
