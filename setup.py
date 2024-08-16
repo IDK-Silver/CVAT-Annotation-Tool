@@ -21,7 +21,20 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
-    install_requires=[
+    install_requires=[  
+        "certifi",
+        "charset-normalizer",
+        "idna",
+        "numpy<=1.26.4",
+        "opencv-python",
+        "pandas",
+        "pillow",
+        "python-dateutil",
+        "pytz",
+        "requests", 
+        "simplejson",
+        "six",
+        "urllib3>=2.2.2",
     ],
     extras_require={
         "dev": [
