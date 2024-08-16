@@ -5,13 +5,14 @@ import warnings
 from typing import List, Union, Any
 import copy
 
-from .meta.label import Label
+from .meta.label import Label, LabelType
 from .meta.attr import Attr
 from .data.image import Image
 from .data.box import Box
 from .data.mask import Mask
 from .export.annotation_type import ExportAnnotationType
 from .export import module
+from .utility.annotation import rle_to_yolo_rectangle
 
 
 class CVAT:
@@ -33,13 +34,30 @@ class CVAT:
         
         for image in str_content['images']:
             mask_infos =  image[Image.Keys.masks]
-            for mask_info in mask_infos:
-                if len(mask_info[Mask.Keys.rle]) >= 10:
-                    mask_info[Mask.Keys.rle] = mask_info[Mask.Keys.rle][:10] + "..."
+            if mask_infos is not None:
+                for mask_info in mask_infos:
+                    if len(mask_info[Mask.Keys.rle]) >= 10:
+                        mask_info[Mask.Keys.rle] = mask_info[Mask.Keys.rle][:10] + "..."
             
-        
+        print(str_content)
         return str(json.dumps(str_content, indent=4, ensure_ascii=False))
 
+    def __getitem__(self, index):
+        cvat_file = CVAT()
+        cvat_file.__meta = self.__meta
+        if isinstance(index, slice):
+            start = index.start or 0
+            stop = index.stop or len(self.__images)
+            step = index.step or 1
+            cvat_file.__images = self.__images[start:stop:step]
+        else:
+            cvat_file.__images = [self.__images[index]]
+        
+        cvat_file.__content['images'] = cvat_file.__images
+        cvat_file.__content['meta'] = cvat_file.__meta
+            
+        return cvat_file
+    
     def load(self, path: str):
         tree = ET.parse(path)
         root = tree.getroot()
@@ -53,7 +71,13 @@ class CVAT:
         
         if labels_element is None:
             try:
-                root.find('meta').find('project').find('labels')
+                labels_element = root.find('meta').find('project').find('labels')
+            except:
+                pass
+            
+        if labels_element is None:
+            try:
+                labels_element = root.find('meta').find('project').find('tasks').find('labels')
             except:
                 pass
         
@@ -187,3 +211,136 @@ class CVAT:
 
         if export_type is ExportAnnotationType.unet:
             module.unet.export(self.__main_key, self.__meta, self.__images, export_path, *export_args)
+            
+    def add_label(self, label: Label):
+        self.__meta.append(label)
+        
+        
+    def merge_label(self, dest_label: Label, atrr_name: str, src_label: Label, autoconvert: bool = True):
+        # check params
+        if dest_label is None or src_label is None or atrr_name is None:
+            warnings.warn('CVAT : merge label failed, params is None')
+            exit(-1)
+        
+        # get label name
+        src_label_name: str = None
+        dest_label_name: str = None
+        
+        if isinstance(src_label, dict):
+            src_label_name = src_label[Label.Keys.name]
+        else:
+            src_label_name = src_label
+        
+        if isinstance(dest_label, dict):
+            dest_label_name = dest_label[Label.Keys.name]
+        else:
+            dest_label_name = dest_label
+        
+        # get label
+        src_label: Label = None
+        dest_label: Label = None
+        
+        # find src label and dest label
+        for label in self.__meta:
+            if label[Label.Keys.name] == src_label_name:
+                src_label = label
+                
+            if label[Label.Keys.name] == dest_label_name:
+                dest_label = label
+        
+        # get dest label attrs
+        dest_label_attrs = dest_label[Label.Keys.attrs]
+        
+        # ensure dest label has attr name
+        if atrr_name not in Label.get_attr_names(dest_label):
+            warnings.warn('CVAT : merge label failed, dest label not find attr name')
+            exit(-1)
+        
+        # get dest label attr
+        dest_attr = None
+
+        for attr in dest_label_attrs:
+            if attr[Attr.Keys.name] == atrr_name:
+                dest_attr = attr
+                break
+        
+        # ensure dest label attr has src label name
+        if src_label_name not in dest_attr[Attr.Keys.values]:
+            dest_attr[Attr.Keys.values].append(src_label_name)
+        
+        # convert to dest type
+        if autoconvert:
+            self.convert_label_type(dest_label[Label.Keys.type])
+        
+        if dest_label[Label.Keys.type] == LabelType.rectangle:
+            
+            target_boxes = []
+            
+            for image in self.__images:
+                for box in image[Image.Keys.boxes]:
+                    if box[Box.Keys.label] == src_label_name:
+                        target_boxes.append(box)
+
+            
+            for box in target_boxes:
+                
+                box[Box.Keys.attributes][atrr_name] = src_label_name
+                
+                box[Box.Keys.label] = dest_label_name
+                
+                
+        
+        
+        self.__meta.remove(src_label)
+        
+            
+    def convert_label_type(self, new_type: LabelType):
+        
+        if new_type == LabelType.rectangle:
+            
+            need_convert_images = []
+            
+            for image in self.__images:
+                if image[Image.Keys.boxes] is not None and image[Image.Keys.masks] is  None:
+                    continue
+                need_convert_images.append(image)
+                
+            for image in need_convert_images:
+                
+                masks = image[Image.Keys.masks]
+                
+                for mask in masks:
+                    
+                    box = Box.create_object()
+                    box[Box.Keys.label] = mask[Mask.Keys.label]
+                    points = rle_to_yolo_rectangle(
+                        mask[Mask.Keys.height], 
+                        mask[Mask.Keys.width], 
+                        mask[Mask.Keys.top], 
+                        mask[Mask.Keys.left],
+                        image[Image.Keys.height],
+                        image[Image.Keys.width]
+                    )
+                    
+                    # np.float32 to built-in float  
+                    points = [
+                        float(point) for point in points
+                    ]
+                    
+                    box[Box.Keys.label] = mask[Mask.Keys.label]
+                    box[Box.Keys.xtl] = points[0]
+                    box[Box.Keys.ytl] = points[1]
+                    box[Box.Keys.xbr] = points[2]
+                    box[Box.Keys.ybr] = points[3]
+                    
+                    image[Image.Keys.boxes].append(box)
+                
+                image[Image.Keys.masks] = []
+        
+    
+        print(self.__images[0])
+                    
+
+        
+        
+        

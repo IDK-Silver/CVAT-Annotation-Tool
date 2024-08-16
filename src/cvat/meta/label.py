@@ -27,3 +27,14 @@ class Label:
     @staticmethod
     def get_attrs(lab: Union['Label', dict]) -> List[Attr]:
         return lab[Label.Keys.attrs]
+    
+    @staticmethod
+    def get_attr_names(lab: Union['Label', dict]) -> List[str]:
+        return [attr[Attr.Keys.name] for attr in Label.get_attrs(lab)]
+
+
+class LabelType:
+    rectangle = 'rectangle'
+    mask = 'mask'
+    def __init__(self):
+        pass
