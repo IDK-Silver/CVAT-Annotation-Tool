@@ -1,4 +1,14 @@
 .idea
 data
 test
-export
+./export
+.vscode
+.idea
+.env
+cvat.egg-info/
+.DS_Store
+.vscode
+.idea
+__pycache__
+.DS_Store
+.env
