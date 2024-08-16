@@ -40,7 +40,13 @@ class CVAT:
         if float(version) > self.support_version:
             warnings.warn('CVAT : not support version')
 
-        labels_element = root.find('meta').find('project').find('labels')
+        labels_element = None
+        
+        if labels_element is None:
+            try:
+                root.find('meta').find('project').find('labels')
+            except:
+                pass
         
         if labels_element is None:
             try:
