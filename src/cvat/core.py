@@ -3,6 +3,7 @@ import json
 import warnings
 
 from typing import List, Union, Any
+import copy
 
 from .meta.label import Label
 from .meta.attr import Attr
@@ -26,10 +27,18 @@ class CVAT:
             'meta': self.__meta,
             'images': self.__images
         }
-        pass
 
     def __str__(self):
-        return str(json.dumps(self.__content, indent=4, ensure_ascii=False))
+        str_content = copy.deepcopy(self.__content)
+        
+        for image in str_content['images']:
+            mask_infos =  image[Image.Keys.masks]
+            for mask_info in mask_infos:
+                if len(mask_info[Mask.Keys.rle]) >= 10:
+                    mask_info[Mask.Keys.rle] = mask_info[Mask.Keys.rle][:10] + "..."
+            
+        
+        return str(json.dumps(str_content, indent=4, ensure_ascii=False))
 
     def load(self, path: str):
         tree = ET.parse(path)
