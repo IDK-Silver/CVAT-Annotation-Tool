@@ -5,6 +5,8 @@ import warnings
 import pathlib
 from typing import List
 
+import cv2
+
 import cvat.core
 from cvat.meta import Attr
 from cvat.meta import Label
@@ -15,7 +17,9 @@ from cvat.utility.dataset import split_dataset
 
 def export(
         key: str, metadata: list, images_data: list, output_path: str,
-        images_path: str = None, rations: list = None, dataset_name: str = 'data'
+        images_path: str = None, rations: list = None, dataset_name: str = 'data',
+        image_prefix: str = '',
+        is_val: bool = False
 ):
     images_data = copy.deepcopy(images_data)
     output_path: pathlib.Path = pathlib.Path(output_path).absolute() / dataset_name
@@ -57,14 +61,29 @@ def export(
     # Ex : Cat: 0, Dog: 1, Kano: 2
     id_dict = {}
 
+    
+        
+    
+    
     # create map
-    with open((output_path / 'obj.name'), 'w+') as objname_file:
+    with open((output_path / 'obj.name'), 'a+') as objname_file:
+        offset = 0
+        objname_file.seek(0)
+        if os.path.exists(output_path / 'obj.name'):
+            for line in objname_file:
+                id_dict[line.strip()] = offset
+                offset += 1
+                
         for index, label in enumerate(all_label):
-            id_dict[label] = index
+            
+            if label in id_dict.keys():
+                continue
+            
+            id_dict[label] = offset + index
             objname_file.write(label + '\r\n')
+            
 
     annotations = ['train', 'val', 'test']
-    sub_images_data = []
     ration = 0.
     for index, annotation in enumerate(annotations):
 
@@ -73,7 +92,7 @@ def export(
 
         sub_images, images_data = split_dataset(images_data, split_ratio=ration)
 
-        with open(record_file, 'w+') as record_file:
+        with open(record_file, 'a+') as record_file:
 
             object_directory = output_path / str('object_' + annotation + '_data')
             os.makedirs(object_directory, exist_ok=True)
@@ -81,14 +100,33 @@ def export(
 
                 image_filename = pathlib.Path(image[Image.Keys.name])
 
-                shutil.copy(
-                    images_path / image_filename, object_directory / image_filename
-                )
+                image_src = images_path / image_filename
+                image_dst = object_directory / (image_prefix + image_filename.name)
+                
+                if not os.path.exists(image_src):
+                    print('cant find image : ', image_src)
+                    continue
+                
+                
+                if not is_val:
+                    shutil.copy(
+                        image_src, image_dst
+                    )
+                else:
+                    img = cv2.imread(str(image_src))
+                        
+                    # 獲取圖像尺寸
+                    height, width = img.shape[:2]
+                    
+    
 
                 record_file.write(
-                    str(object_directory / image_filename) + '\r\n'
+                    str(object_directory / (image_prefix + image_filename.name)) + '\r\n'
                 )
-                with open(object_directory / (image_filename.stem + '.txt'), 'w+') as annotation_file:
+                
+            
+                with open(object_directory / (image_prefix + image_filename.stem + '.txt'), 'w+') as annotation_file:
+
                     for box in Image.get_boxs(image):
                         annotation_file.write(
                             Box.to_yolo_format(
@@ -98,4 +136,30 @@ def export(
                                 cls_id=id_dict[box[Box.Keys.label]], to_str=True
                             ) + '\r\n'
                         )
+                        
+                            
+                        if is_val:
+                            # 使用 to_pascal_voc_format 獲取座標
+                            x_min, y_min, x_max, y_max = Box.to_pascal_voc_format(
+                                box, height, width
+                            )
+                            
+    
+                            
+                            # 畫出紅色矩形
+                            cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 0, 255), 2)
+                            
+                            # 保存帶有矩形的圖像
+                    
+                    if is_val:
+                        cv2.imwrite(str(image_dst), img)
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
+                        
 
