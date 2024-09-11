@@ -45,3 +45,24 @@ def rle_to_yolo_rectangle(
     
     # 返回 YOLO 格式的矩形 [x, y, w, h]
     return np.array([x, y, w, h], dtype=np.float32)
+
+
+def rle_to_voc_rectangle(
+        rle_height: int, rle_width: int,
+        rle_top: int, rle_left: int,
+        image_height: int, image_width: int
+    ) -> np.ndarray:
+    # 計算矩形的左上角和右下角坐標
+    xmin = rle_left
+    ymin = rle_top
+    xmax = rle_left + rle_width
+    ymax = rle_top + rle_height
+
+    # 確保坐標不超出圖像邊界
+    xmin = max(0, xmin)
+    ymin = max(0, ymin)
+    xmax = min(image_width, xmax)
+    ymax = min(image_height, ymax)
+
+    # 返回 VOC 格式的矩形 [xmin, ymin, xmax, ymax]
+    return np.array([xmin, ymin, xmax, ymax], dtype=np.int32)
