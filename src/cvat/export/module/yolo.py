@@ -19,7 +19,7 @@ def export(
         key: str, metadata: list, images_data: list, output_path: str,
         images_path: str = None, rations: list = None, dataset_name: str = 'data',
         image_prefix: str = '',
-        is_val: bool = False
+        is_val: bool = False, ignore_label: list = None
 ):
     images_data = copy.deepcopy(images_data)
     output_path: pathlib.Path = pathlib.Path(output_path).absolute() / dataset_name
@@ -43,28 +43,32 @@ def export(
     # get all label by metadata
     # check key is original or not
     if key == cvat.core.CVAT.default_key:
-
         # append all label name
         for label in metadata:
-            all_label.append(
-                label[Label.Keys.name]
-            )
+            label_name = label[Label.Keys.name]
+
+            # add label to label list if not in ignore list
+            if label_name not in ignore_label:
+                all_label.append(
+                    label[Label.Keys.name]
+                )
     else:
         for attr in Label.get_attrs(metadata[0]):
 
             # append all name by label value
             if Attr.get_name(attr) == key:
                 all_label = Attr.get_values(attr)
+
+                # delete label by ignore list
+                all_label = list(
+                    set(all_label).difference(set(ignore_label))
+                )
                 break
 
     # label map to id
     # Ex : Cat: 0, Dog: 1, Kano: 2
     id_dict = {}
 
-    
-        
-    
-    
     # create map
     with open((output_path / 'obj.name'), 'a+') as objname_file:
         offset = 0
@@ -127,7 +131,13 @@ def export(
             
                 with open(object_directory / (image_prefix + image_filename.stem + '.txt'), 'w+') as annotation_file:
 
+                    # write each box info
                     for box in Image.get_boxs(image):
+
+                        # if label in ignore list then pass
+                        if box[Box.Keys.label] in ignore_label:
+                            continue
+
                         annotation_file.write(
                             Box.to_yolo_format(
                                 box=box,
@@ -136,21 +146,17 @@ def export(
                                 cls_id=id_dict[box[Box.Keys.label]], to_str=True
                             ) + '\r\n'
                         )
-                        
-                            
+
+                        # paint each box
                         if is_val:
-                            # 使用 to_pascal_voc_format 獲取座標
-                            x_min, y_min, x_max, y_max = Box.to_pascal_voc_format(
-                                box, height, width
-                            )
+                            x_min = box[Box.Keys.xtl]
+                            y_min = box[Box.Keys.ytl]
+                            x_max = box[Box.Keys.xbr]
+                            y_max = box[Box.Keys.ybr]
+                            cv2.rectangle(img, (int(x_min), int(y_min)), (int(x_max), int(y_max)), (0, 0, 255), 2)
                             
-    
-                            
-                            # 畫出紅色矩形
-                            cv2.rectangle(img, (x_min, y_min), (x_max, y_max), (0, 0, 255), 2)
-                            
-                            # 保存帶有矩形的圖像
-                    
+
+                    # write val image
                     if is_val:
                         cv2.imwrite(str(image_dst), img)
                         
