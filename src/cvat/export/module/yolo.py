@@ -19,7 +19,7 @@ def export(
         key: str, metadata: list, images_data: list, output_path: str,
         images_path: str = None, rations: list = None, dataset_name: str = 'data',
         image_prefix: str = '',
-        is_val: bool = False, ignore_label: list = None
+        is_val: bool = False, ignore_label: list = []
 ):
     images_data = copy.deepcopy(images_data)
     output_path: pathlib.Path = pathlib.Path(output_path).absolute() / dataset_name

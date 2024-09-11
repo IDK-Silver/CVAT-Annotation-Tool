@@ -12,7 +12,7 @@ from .data.box import Box
 from .data.mask import Mask
 from .export.annotation_type import ExportAnnotationType
 from .export import module
-from .utility.annotation import rle_to_yolo_rectangle
+from .utility.annotation import rle_to_yolo_rectangle, rle_to_voc_rectangle
 
 
 class CVAT:
@@ -313,7 +313,7 @@ class CVAT:
                     
                     box = Box.create_object()
                     box[Box.Keys.label] = mask[Mask.Keys.label]
-                    points = rle_to_yolo_rectangle(
+                    points = rle_to_voc_rectangle(
                         mask[Mask.Keys.height], 
                         mask[Mask.Keys.width], 
                         mask[Mask.Keys.top], 
@@ -338,8 +338,7 @@ class CVAT:
                 image[Image.Keys.masks] = []
         
     
-        print(self.__images[0])
-                    
+
 
         
         
