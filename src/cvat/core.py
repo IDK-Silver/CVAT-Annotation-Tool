@@ -5,6 +5,8 @@ import warnings
 from typing import List, Union, Any
 import copy
 
+from networkx.algorithms.bipartite.cluster import modes
+
 from .meta.label import Label, LabelType
 from .meta.attr import Attr
 from .data.image import Image
@@ -211,6 +213,9 @@ class CVAT:
 
         if export_type is ExportAnnotationType.unet:
             module.unet.export(self.__main_key, self.__meta, self.__images, export_path, *export_args)
+
+        if export_type is ExportAnnotationType.classification:
+            module.classification.export(self.__main_key, self.__meta, self.__images, export_path, *export_args)
             
     def add_label(self, label: Label):
         self.__meta.append(label)

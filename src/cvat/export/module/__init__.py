@@ -1,3 +1,4 @@
 from . import yolo
 from . import unet
-__all__ = ['yolo', 'unet']
+from . import classification
+__all__ = ['yolo', 'unet', 'classification']
